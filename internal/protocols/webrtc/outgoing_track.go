@@ -8,6 +8,10 @@ import (
 	"github.com/pion/webrtc/v3"
 )
 
+const (
+	mimeMultiopus = "audio/multiopus"
+)
+
 // OutgoingTrack is a WebRTC outgoing track
 type OutgoingTrack struct {
 	Format format.Format
@@ -56,6 +60,17 @@ func (t *OutgoingTrack) codecParameters() (webrtc.RTPCodecParameters, error) {
 		}, nil
 
 	case *format.Opus:
+		if forma.ChannelCount > 2 {
+			return webrtc.RTPCodecParameters{
+				RTPCodecCapability: webrtc.RTPCodecCapability{
+					MimeType:  mimeMultiopus,
+					ClockRate: 48000,
+					Channels:  uint16(forma.ChannelCount),
+				},
+				PayloadType: 112,
+			}, nil
+		}
+
 		return webrtc.RTPCodecParameters{
 			RTPCodecCapability: webrtc.RTPCodecCapability{
 				MimeType:  webrtc.MimeTypeOpus,

@@ -71,6 +71,60 @@ var incomingVideoCodecs = []webrtc.RTPCodecParameters{
 var incomingAudioCodecs = []webrtc.RTPCodecParameters{
 	{
 		RTPCodecCapability: webrtc.RTPCodecCapability{
+			MimeType:    mimeMultiopus,
+			ClockRate:   48000,
+			Channels:    3,
+			SDPFmtpLine: "channel_mapping=0,2,1;num_streams=2;coupled_streams=1",
+		},
+		PayloadType: 112,
+	},
+	{
+		RTPCodecCapability: webrtc.RTPCodecCapability{
+			MimeType:    mimeMultiopus,
+			ClockRate:   48000,
+			Channels:    4,
+			SDPFmtpLine: "channel_mapping=0,1,2,3;num_streams=2;coupled_streams=2",
+		},
+		PayloadType: 113,
+	},
+	{
+		RTPCodecCapability: webrtc.RTPCodecCapability{
+			MimeType:    mimeMultiopus,
+			ClockRate:   48000,
+			Channels:    5,
+			SDPFmtpLine: "channel_mapping=0,4,1,2,3;num_streams=3;coupled_streams=2",
+		},
+		PayloadType: 114,
+	},
+	{
+		RTPCodecCapability: webrtc.RTPCodecCapability{
+			MimeType:    mimeMultiopus,
+			ClockRate:   48000,
+			Channels:    6,
+			SDPFmtpLine: "channel_mapping=0,4,1,2,3,5;num_streams=4;coupled_streams=2",
+		},
+		PayloadType: 115,
+	},
+	{
+		RTPCodecCapability: webrtc.RTPCodecCapability{
+			MimeType:    mimeMultiopus,
+			ClockRate:   48000,
+			Channels:    7,
+			SDPFmtpLine: "channel_mapping=0,4,1,2,3,5,6;num_streams=4;coupled_streams=4",
+		},
+		PayloadType: 116,
+	},
+	{
+		RTPCodecCapability: webrtc.RTPCodecCapability{
+			MimeType:    mimeMultiopus,
+			ClockRate:   48000,
+			Channels:    8,
+			SDPFmtpLine: "channel_mapping=0,6,1,4,5,2,3,7;num_streams=5;coupled_streams=4",
+		},
+		PayloadType: 117,
+	},
+	{
+		RTPCodecCapability: webrtc.RTPCodecCapability{
 			MimeType:    webrtc.MimeTypeOpus,
 			ClockRate:   48000,
 			Channels:    2,
@@ -149,6 +203,12 @@ func newIncomingTrack(
 		t.format = &format.H264{
 			PayloadTyp:        uint8(track.PayloadType()),
 			PacketizationMode: 1,
+		}
+
+	case strings.ToLower(mimeMultiopus):
+		t.format = &format.Opus{
+			PayloadTyp:   uint8(track.PayloadType()),
+			ChannelCount: int(track.Codec().Channels),
 		}
 
 	case strings.ToLower(webrtc.MimeTypeOpus):

@@ -2,6 +2,7 @@ package webrtc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"sync"
@@ -276,7 +277,7 @@ func (co *PeerConnection) CreateFullAnswer(
 
 	answer, err := co.wr.CreateAnswer(nil)
 	if err != nil {
-		if err.Error() == "unable to populate media section, RTPSender created with no codecs" {
+		if errors.Is(err, webrtc.ErrSenderWithNoCodecs) {
 			return nil, fmt.Errorf("track codecs are not supported by remote")
 		}
 		return nil, err
