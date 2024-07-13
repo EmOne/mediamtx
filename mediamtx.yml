@@ -19,7 +19,8 @@ readTimeout: 10s
 writeTimeout: 10s
 # Size of the queue of outgoing packets.
 # A higher value allows to increase throughput, a lower value allows to save RAM.
-writeQueueSize: 512
+writeQueueSize: 1024
+#writeQueueSize: 512
 # Maximum size of outgoing UDP packets.
 # This can be decreased to avoid fragmentation on networks with a low UDP MTU.
 udpMaxPayloadSize: 1472
@@ -258,7 +259,7 @@ rtspAuthMethods: [basic]
 # Global settings -> RTMP server
 
 # Enable publishing and reading streams with the RTMP protocol.
-rtmp: yes
+rtmp: no
 # Address of the RTMP listener. This is needed only when encryption is "no" or "optional".
 rtmpAddress: :1935
 # Encrypt connections with TLS (RTMPS).
@@ -278,7 +279,7 @@ rtmpServerCert: server.crt
 # Global settings -> HLS server
 
 # Enable reading streams with the HLS protocol.
-hls: yes
+hls: no
 # Address of the HLS listener.
 hlsAddress: :8888
 # Enable TLS/HTTPS on the HLS server.
@@ -390,7 +391,7 @@ webrtcTrackGatherTimeout: 2s
 # Global settings -> SRT server
 
 # Enable publishing and reading streams with the SRT protocol.
-srt: yes
+srt: no
 # Address of the SRT listener.
 srtAddress: :8890
 
@@ -586,7 +587,7 @@ pathDefaults:
   rpiCameraTextOverlayEnable: false
   # text that is printed on each frame.
   # format is the one of the strftime() function.
-  rpiCameraTextOverlay: '%Y-%m-%d %H:%M:%S - MediaMTX'
+  rpiCameraTextOverlay: '%Y-%m-%d %H:%M:%S - EmOne'
 
   ###############################################
   # Default path settings -> Hooks
@@ -691,9 +692,22 @@ pathDefaults:
 # for example "~^prefix" will match all paths that start with "prefix".
 paths:
   # example:
-  # my_camera:
-  #   source: rtsp://my_camera
+#  camera:
+#    source: rpiCamera
+#    rpiCameraWidth: 640
+#    rpiCameraHeight: 480
+#    rpiCameraFPS: 30
+#    rpiCameraVFlip: true
+#    rpiCameraTextOverlayEnable: true
 
   # Settings under path "all_others" are applied to all paths that
   # do not match another entry.
   all_others:
+  cam:
+    runOnInit: gst-launch-1.0 v4l2src device=/dev/video8 ! jpegdec ! videoconvert ! videoscale ! video/x-raw,width=320,height=240,format=I420 ! clockoverlay time-format="%Y-%m-%d %H:%M:%S EmOne-CAM" ! x264enc speed-preset=ultrafast bitrate=600 ! video/x-h264,stream-format=byte-stream,profile=baseline ! rtspclientsink protocols=udp location=rtsp://localhost:8554/cam
+    runOnInitRestart: yes
+  cam4:
+    runOnInit: gst-launch-1.0 v4l2src device=/dev/video0 ! jpegdec ! videoconvert ! videoscale ! video/x-raw,width=320,height=240,format=I420 ! clockoverlay time-format="%Y-%m-%d %H:%M:%S EmOne-CAM0" ! videobox border-alpha=0 left=-320 top=-240 ! videomixer name=mix sink_0::xpos=0 sink_1::xpos=320 sink_2::xpos=0 sink_2::ypos=240 ! x264enc speed-preset=ultrafast bitrate=600 ! video/x-h264,stream-format=byte-stream,profile=baseline ! rtspclientsink protocols=udp location=rtsp://localhost:8554/cam4 v4l2src device=/dev/video2 ! jpegdec ! videoconvert ! videoscale ! video/x-raw,width=320,format=I420 ! clockoverlay time-format="%Y-%m-%d %H:%M:%S EmOne-CAM1" ! videobox border-alpha=0 ! mix. v4l2src device=/dev/video4 ! jpegdec ! videoconvert ! videoscale ! video/x-raw,width=320,format=I420 ! clockoverlay time-format="%Y-%m-%d %H:%M:%S EmOne-CAM2" ! videobox border-alpha=0 ! mix. v4l2src device=/dev/video6 ! jpegdec ! videoconvert ! videoscale ! video/x-raw,width=320,format=I420 ! clockoverlay time-format="%Y-%m-%d %H:%M:%S EmOne-CAM3" ! videobox border-alpha=0 ! mix.
+  # Restart the command if it exits.
+    runOnInitRestart: yes
+
