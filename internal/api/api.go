@@ -22,7 +22,7 @@ import (
 	"github.com/bluenviron/mediamtx/internal/defs"
 	"github.com/bluenviron/mediamtx/internal/logger"
 	"github.com/bluenviron/mediamtx/internal/protocols/httpp"
-	"github.com/bluenviron/mediamtx/internal/record"
+	"github.com/bluenviron/mediamtx/internal/recordstore"
 	"github.com/bluenviron/mediamtx/internal/restrictnetwork"
 	"github.com/bluenviron/mediamtx/internal/servers/hls"
 	"github.com/bluenviron/mediamtx/internal/servers/rtmp"
@@ -54,6 +54,27 @@ func paramName(ctx *gin.Context) (string, bool) {
 	}
 
 	return name[1:], true
+}
+
+func recordingsOfPath(
+	pathConf *conf.Path,
+	pathName string,
+) *defs.APIRecording {
+	ret := &defs.APIRecording{
+		Name: pathName,
+	}
+
+	segments, _ := recordstore.FindSegments(pathConf, pathName)
+
+	ret.Segments = make([]*defs.APIRecordingSegment, len(segments))
+
+	for i, seg := range segments {
+		ret.Segments[i] = &defs.APIRecordingSegment{
+			Start: seg.Start,
+		}
+	}
+
+	return ret
 }
 
 // PathManager contains methods used by the API and Metrics server.
@@ -263,17 +284,13 @@ func (a *API) middlewareOrigin(ctx *gin.Context) {
 }
 
 func (a *API) middlewareAuth(ctx *gin.Context) {
-	user, pass, hasCredentials := ctx.Request.BasicAuth()
-
 	err := a.AuthManager.Authenticate(&auth.Request{
-		User:   user,
-		Pass:   pass,
-		Query:  ctx.Request.URL.RawQuery,
-		IP:     net.ParseIP(ctx.ClientIP()),
-		Action: conf.AuthActionAPI,
+		IP:          net.ParseIP(ctx.ClientIP()),
+		Action:      conf.AuthActionAPI,
+		HTTPRequest: ctx.Request,
 	})
 	if err != nil {
-		if !hasCredentials {
+		if err.(*auth.Error).AskCredentials { //nolint:errorlint
 			ctx.Header("WWW-Authenticate", `Basic realm="mediamtx"`)
 			ctx.AbortWithStatus(http.StatusUnauthorized)
 			return
@@ -1062,7 +1079,7 @@ func (a *API) onRecordingsList(ctx *gin.Context) {
 	c := a.Conf
 	a.mutex.RUnlock()
 
-	pathNames := getAllPathsWithRecordings(c.Paths)
+	pathNames := recordstore.FindAllPathsWithSegments(c.Paths)
 
 	data := defs.APIRecordingList{}
 
@@ -1077,8 +1094,8 @@ func (a *API) onRecordingsList(ctx *gin.Context) {
 	data.Items = make([]*defs.APIRecording, len(pathNames))
 
 	for i, pathName := range pathNames {
-		_, pathConf, _, _ := conf.FindPathConf(c.Paths, pathName)
-		data.Items[i] = recordingEntry(pathConf, pathName)
+		pathConf, _, _ := conf.FindPathConf(c.Paths, pathName)
+		data.Items[i] = recordingsOfPath(pathConf, pathName)
 	}
 
 	ctx.JSON(http.StatusOK, data)
@@ -1095,13 +1112,13 @@ func (a *API) onRecordingsGet(ctx *gin.Context) {
 	c := a.Conf
 	a.mutex.RUnlock()
 
-	_, pathConf, _, err := conf.FindPathConf(c.Paths, pathName)
+	pathConf, _, err := conf.FindPathConf(c.Paths, pathName)
 	if err != nil {
 		a.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, recordingEntry(pathConf, pathName))
+	ctx.JSON(http.StatusOK, recordingsOfPath(pathConf, pathName))
 }
 
 func (a *API) onRecordingDeleteSegment(ctx *gin.Context) {
@@ -1117,18 +1134,18 @@ func (a *API) onRecordingDeleteSegment(ctx *gin.Context) {
 	c := a.Conf
 	a.mutex.RUnlock()
 
-	_, pathConf, _, err := conf.FindPathConf(c.Paths, pathName)
+	pathConf, _, err := conf.FindPathConf(c.Paths, pathName)
 	if err != nil {
 		a.writeError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
-	pathFormat := record.PathAddExtension(
+	pathFormat := recordstore.PathAddExtension(
 		strings.ReplaceAll(pathConf.RecordPath, "%path", pathName),
 		pathConf.RecordFormat,
 	)
 
-	segmentPath := record.Path{
+	segmentPath := recordstore.Path{
 		Start: start,
 	}.Encode(pathFormat)
 
